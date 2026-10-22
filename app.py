@@ -101,7 +101,7 @@ def parse_response(response_content):
 def process_token(uid, password):
     token_data = get_token(password, uid)
     if not token_data:
-        return {"uid": uid, "error": "Failed to retrieve token"}
+        return {"success": False, "uid": uid, "error": "Failed to retrieve token"}
 
     game_data = my_pb2.GameData()
     game_data.timestamp = "2025-05-29 13:11:47"
@@ -185,7 +185,8 @@ def process_token(uid, password):
                 response_dict = parse_response(str(example_msg))
                 
                 return {
-                    "region": response_dict.get("region", "N/A"),
+                    "success": True,
+                    "region": response_dict.get("region", "IND"),
                     "status": response_dict.get("status", "N/A"),
                     "team": "STAR_GMRR",
                     "token": response_dict.get("token", "N/A"),
@@ -194,16 +195,19 @@ def process_token(uid, password):
                 }
             except Exception as e:
                 return {
+                    "success": False,
                     "uid": uid,
                     "error": f"Failed to deserialize the response: {e}"
                 }
         else:
             return {
+                "success": False,
                 "uid": uid,
                 "error": f"Failed to get response: HTTP {response.status_code}, {response.reason}"
             }
     except requests.RequestException as e:
         return {
+            "success": False,
             "uid": uid,
             "error": f"An error occurred while making the request: {e}"
         }
@@ -212,7 +216,7 @@ def process_token(uid, password):
 def process_access_token(access_token, uid=None, platform_type=4):
     token_data = get_token_inspect_data(access_token)
     if not token_data:
-        return {"error": "INVALID_TOKEN", "message": "AccessToken invalid."}
+        return {"success": False, "error": "INVALID_TOKEN", "message": "AccessToken invalid."}
 
     open_id = token_data["open_id"]
     platform_type = token_data.get("platform", platform_type)
@@ -301,7 +305,7 @@ def process_access_token(access_token, uid=None, platform_type=4):
                 
                 return {
                     "success": True,
-                    "region": response_dict.get("region", "N/A"),
+                    "region": response_dict.get("region", "IND"),
                     "status": response_dict.get("status", "N/A"),
                     "team": "𝗦𝗧𝗔𝗥",
                     "token": response_dict.get("token", "N/A"),
@@ -380,7 +384,7 @@ def get_responses():
 
 @app.route('/api/get_jwt', methods=['GET'])
 def get_jwt():
-    """API endpoint compatible with the original app.py"""
+    """API endpoint compatible with the original app.py and bot script"""
     access_token = request.args.get('access_token')
     guest_uid = request.args.get('guest_uid')
     guest_password = request.args.get('guest_password')
@@ -388,28 +392,44 @@ def get_jwt():
     if access_token:
         response = process_access_token(access_token)
         if response.get('success'):
-            return jsonify({"success": True, "BearerAuth": response['BearerAuth']})
+            token = response.get('token')
+            return jsonify({
+                "success": True, 
+                "token": token, 
+                "BearerAuth": token,
+                "region": response.get("region", "IND")
+            })
         else:
             return jsonify(response), 400
 
     elif guest_uid and guest_password:
         response = process_token(guest_uid, guest_password)
-        if 'token' in response:
-            return jsonify({"success": True, "BearerAuth": response['token']})
+        token = response.get('token')
+        if response.get('success') and token and token != "N/A":
+            return jsonify({
+                "success": True,
+                "token": token,
+                "BearerAuth": token,
+                "region": response.get("region", "IND")
+            })
         else:
             return jsonify({
                 "success": False,
                 "message": "unregistered or banned account.",
-                "detail": "jwt not found in response."
+                "detail": response.get("error", "jwt not found in response.")
             }), 500
 
     return jsonify({
         "success": False,
         "message": "missing access_token (or guest_uid + guest_password)"
     }), 400
+
+
 @app.route('/')
 def home():
     return jsonify({"status": "active", "message": "API Server is running successfully!"}), 200
 
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5030)
+    
