@@ -1,3 +1,4 @@
+import os
 from flask import Flask, jsonify, request
 from flask_caching import Cache
 import requests
@@ -430,6 +431,9 @@ def home():
     return jsonify({"status": "active", "message": "API Server is running successfully!"}), 200
 
 
+
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5030)
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host='0.0.0.0', port=port)
+    
     
