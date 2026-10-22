@@ -407,7 +407,9 @@ def get_jwt():
         "success": False,
         "message": "missing access_token (or guest_uid + guest_password)"
     }), 400
-
+@app.route('/')
+def home():
+    return jsonify({"status": "active", "message": "API Server is running successfully!"}), 200
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5030)
